@@ -12,7 +12,11 @@ import org.apache.spark.streaming.dstream.DStream
 import redis.clients.jedis.Jedis
 
 object DauHandler {
-//  def filterByRedis(startUpLogDStream: DStream[StartUpLog]) = {
+  def filterByGroup(filterByRedisDStream: DStream[StartUpLog]) = {
+
+  }
+
+  //  def filterByRedis(startUpLogDStream: DStream[StartUpLog]) = {
     //    方案二  每个分区创建一次连接
     //    val value: DStream[StartUpLog] = startUpLogDStream.mapPartitions(partition => {
     //      //      创建redis连接

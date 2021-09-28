@@ -61,7 +61,7 @@ object DauApp {
     //经过批次间去重后的数据条数
     filterByRedisDStream.count().print()
 //    批次内去重
-    DauHandler.filterByGroup()
+    DauHandler.filterByGroup(filterByRedisDStream)
 //    将去重结果写入redis
     DauHandler.saveMidToRedis(filterByRedisDStream)
 
