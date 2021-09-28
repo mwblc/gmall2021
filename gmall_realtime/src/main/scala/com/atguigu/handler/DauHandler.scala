@@ -13,32 +13,46 @@ import redis.clients.jedis.Jedis
 
 object DauHandler {
   def filterByGroup(filterByRedisDStream: DStream[StartUpLog]) = {
+//将数据转化格式
+    val midWithLogDateToLogDStream: DStream[((String, String), StartUpLog)] = filterByRedisDStream.map(startUpLog => {
+      ((startUpLog.mid, startUpLog.logDate), startUpLog)
+    })
+//    将相同key聚合
+    val midWithLogDateToIterLogDStream: DStream[((String, String), Iterable[StartUpLog])] = midWithLogDateToLogDStream.groupByKey()
 
+    //3.对value按照时间戳进行排序,取出第一条
+    val midWithLogDateToListLogDStream: DStream[((String, String), List[StartUpLog])] = midWithLogDateToIterLogDStream.mapValues(iter => {
+      iter.toList.sortWith(_.ts < _.ts).take(1)
+    })
+//    取value值并打散扁平化
+    val value: DStream[StartUpLog] = midWithLogDateToListLogDStream.flatMap(_._2)
+    value
   }
 
-  //  def filterByRedis(startUpLogDStream: DStream[StartUpLog]) = {
-    //    方案二  每个分区创建一次连接
-    //    val value: DStream[StartUpLog] = startUpLogDStream.mapPartitions(partition => {
-    //      //      创建redis连接
-    //      val jedis = new Jedis("hadoop105", 6379)
-    //      //      调用filter函数
-    //      val logs: Iterator[StartUpLog] = partition.filter(startUpLog => {
-    //        //        查询redis中的数据
-    //        //        定义key的类型
-    //        val rediskey: String = "DAU:" + startUpLog.logDate
-    //        val mids: util.Set[String] = jedis.smembers(rediskey)
-    //        //3.将当前批次的mid去之前批次去重过后的mid（redis中查询出来的mid）做对比，重复的去掉
-    //        val bool: Boolean = mids.contains(startUpLog.mid)
-    //        !bool
-    //      })
-    //      jedis.close()
-    //      logs
-    //    })
-    //    value
+//  分区间去重
+//    def filterByRedis(startUpLogDStream: DStream[StartUpLog]) = {
+////        方案二  每个分区创建一次连接
+//        val value: DStream[StartUpLog] = startUpLogDStream.mapPartitions(partition => {
+//          //      创建redis连接
+//          val jedis = new Jedis("hadoop105", 6379)
+//          //      调用filter函数
+//          val logs: Iterator[StartUpLog] = partition.filter(startUpLog => {
+//            //        查询redis中的数据
+//            //        定义key的类型
+//            val rediskey: String = "DAU:" + startUpLog.logDate
+//            val mids: util.Set[String] = jedis.smembers(rediskey)
+//            //3.将当前批次的mid去之前批次去重过后的mid（redis中查询出来的mid）做对比，重复的去掉
+//            val bool: Boolean = mids.contains(startUpLog.mid)
+//            !bool
+//          })
+//          jedis.close()
+//          logs
+//        })
+//        value
 //  }
         //方案三:在每个批次内创建一次连接，来优化连接个数
     def filterByRedis(startUpLogDStream: DStream[StartUpLog],sc:SparkContext) ={
-        val sdf: SimpleDateFormat = new SimpleDateFormat("yyyy-MM-dd HH")
+        val sdf: SimpleDateFormat = new SimpleDateFormat("yyyy-MM-dd")
       val value: DStream[StartUpLog] = startUpLogDStream.transform(rdd => {
         //      创建redis连接
         val jedis = new Jedis("hadoop105", 6379)
