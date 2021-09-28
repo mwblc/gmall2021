@@ -51,7 +51,7 @@ object DauApp {
 //    做缓存,避免重复掉用时重复计算
     startUpLogDStream.cache()
 //    批次间去重(与redis中的数据进行比较)
-    val filterByRedisDStream: DStream[StartUpLog] = DauHandler.filterByRedis(startUpLogDStream)
+    val filterByRedisDStream: DStream[StartUpLog] = DauHandler.filterByRedis(startUpLogDStream,ssc.sparkContext)
 
     filterByRedisDStream.cache()
 
@@ -61,7 +61,7 @@ object DauApp {
     //经过批次间去重后的数据条数
     filterByRedisDStream.count().print()
 //    批次内去重
-
+    DauHandler.filterByGroup()
 //    将去重结果写入redis
     DauHandler.saveMidToRedis(filterByRedisDStream)
 
